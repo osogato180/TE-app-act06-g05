@@ -36,7 +36,7 @@ def obtener_todas_las_citas():
   return list(coleccion.find())
 
 
-# --- OPERACIÓN: ACTUALIZAR (UPDATE - Modificado para permitir cambiar especialidad y médico) ---
+# --- OPERACIÓN: ACTUALIZAR (UPDATE) ---
 def actualizar_cita(
     id_cita, nuevo_estado, nueva_especialidad, nuevo_medico, nueva_fecha
 ):
