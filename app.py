@@ -56,14 +56,15 @@ if opcion == "Registrar Cita":
   with st.form("form_registro"):
     paciente = st.text_input("Nombre Completo del Paciente")
 
-    # Selección de especialidad
     especialidad = st.selectbox(
-        "Especialidad", list(ESPECIALIDADES_MEDICOS.keys())
+        "Especialidad", list(ESPECIALIDADES_MEDICOS.keys()), key="reg_especialidad"
     )
 
-    # Los médicos cambian dinámicamente según la especialidad elegida (3 médicos únicos)
+    # Los médicos se actualizan dinámicamente según la especialidad seleccionada
     medicos_disponibles = ESPECIALIDADES_MEDICOS[especialidad]
-    medico = st.selectbox("Médico Asignado", medicos_disponibles)
+    medico = st.selectbox(
+        "Médico Asignado", medicos_disponibles, key="reg_medico"
+    )
 
     fecha_cita = st.date_input("Fecha de la Cita")
     btn_guardar = st.form_submit_button("Guardar en MongoDB Atlas")
