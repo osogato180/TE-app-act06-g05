@@ -53,31 +53,33 @@ opcion = st.sidebar.selectbox("Seleccione una operación", menu)
 # 1. REGISTRAR
 if opcion == "Registrar Cita":
   st.subheader("📝 Registrar Nueva Cita")
-  with st.form("form_registro"):
-    paciente = st.text_input("Nombre Completo del Paciente")
 
-    especialidad = st.selectbox(
-        "Especialidad", list(ESPECIALIDADES_MEDICOS.keys()), key="reg_especialidad"
-    )
+  # Captura de datos de forma interactiva en tiempo real
+  paciente = st.text_input("Nombre Completo del Paciente", key="input_paciente")
 
-    # Los médicos se actualizan dinámicamente según la especialidad seleccionada
-    medicos_disponibles = ESPECIALIDADES_MEDICOS[especialidad]
-    medico = st.selectbox(
-        "Médico Asignado", medicos_disponibles, key="reg_medico"
-    )
+  # Al cambiar esta especialidad, Streamlit refrescará la pantalla al instante
+  especialidad = st.selectbox(
+      "Especialidad", list(ESPECIALIDADES_MEDICOS.keys()), key="reg_especialidad"
+  )
 
-    fecha_cita = st.date_input("Fecha de la Cita")
-    btn_guardar = st.form_submit_button("Guardar en MongoDB Atlas")
+  # Los médicos se actualizan inmediatamente con los 3 únicos de la especialidad elegida
+  medicos_disponibles = ESPECIALIDADES_MEDICOS[especialidad]
+  medico = st.selectbox(
+      "Médico Asignado", medicos_disponibles, key="reg_medico"
+  )
 
-    if btn_guardar:
-      if paciente:
-        db.registrar_cita(paciente, especialidad, medico, fecha_cita)
-        st.success(
-            f"Cita registrada con éxito para {paciente} con el/la {medico}"
-            f" ({especialidad})."
-        )
-      else:
-        st.error("Por favor ingrese el nombre del paciente.")
+  fecha_cita = st.date_input("Fecha de la Cita", key="reg_fecha")
+
+  st.markdown("---")
+  if st.button("Guardar en MongoDB Atlas", type="primary"):
+    if paciente.strip():
+      db.registrar_cita(paciente, especialidad, medico, fecha_cita)
+      st.success(
+          f"¡Cita registrada con éxito para **{paciente}** con el/la"
+          f" **{medico}** ({especialidad})!"
+      )
+    else:
+      st.error("Por favor ingrese el nombre del paciente.")
 
 # 2. CONSULTAR
 elif opcion == "Consultar Citas":
