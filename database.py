@@ -6,7 +6,6 @@ import streamlit as st
 @st.cache_resource
 def get_database():
   """Establece la conexión con el clúster de MongoDB Atlas."""
-  # La URI se recupera de forma segura desde los secrets de Streamlit o variable local
   mongo_uri = st.secrets["MONGO_URI"]
   client = pymongo.MongoClient(mongo_uri)
   return client["citas_medicas_db"]
@@ -37,12 +36,21 @@ def obtener_todas_las_citas():
   return list(coleccion.find())
 
 
-# --- OPERACIÓN: ACTUALIZAR (UPDATE) ---
-def actualizar_cita(id_cita, nuevo_estado, nuevo_medico):
+# --- OPERACIÓN: ACTUALIZAR (UPDATE - Modificado para permitir cambiar especialidad y médico) ---
+def actualizar_cita(
+    id_cita, nuevo_estado, nueva_especialidad, nuevo_medico, nueva_fecha
+):
   coleccion = obtener_coleccion()
   return coleccion.update_one(
       {"_id": id_cita},
-      {"$set": {"estado": nuevo_estado, "medico": nuevo_medico}},
+      {
+          "$set": {
+              "estado": nuevo_estado,
+              "especialidad": nueva_especialidad,
+              "medico": nuevo_medico,
+              "fecha_cita": str(nueva_fecha),
+          }
+      },
   )
 
 
