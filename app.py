@@ -1,11 +1,53 @@
+from datetime import datetime
 import database as db
 import streamlit as st
 
-st.set_page_config(page_title="Gestión de Citas Médicas", layout="wide")
+st.set_page_config(
+    page_title="Gestión de Citas Médicas", layout="wide"
+)
 st.title("🏥 Sistema de Gestión de Citas Médicas (MongoDB Atlas)")
 
+# Diccionario que mapea Especialidades con sus respectivos Médicos (mínimo 3 por especialidad)
+ESPECIALIDADES_MEDICOS = {
+    "Medicina General": [
+        "Dr. Carlos Pérez",
+        "Dra. Ana Gómez",
+        "Dr. Luis Torres",
+    ],
+    "Pediatría": [
+        "Dra. María Fernández",
+        "Dr. Jorge Ramírez",
+        "Dra. Sofía Castro",
+    ],
+    "Ginecología": [
+        "Dra. Carmen Ruiz",
+        "Dr. Javier Morales",
+        "Dra. Elena Vargas",
+    ],
+    "Cardiología": [
+        "Dr. Roberto Silva",
+        "Dra. Patricia Rojas",
+        "Dr. Fernando Paredes",
+    ],
+    "Dermatología": [
+        "Dra. Lucía Mendoza",
+        "Dr. Ricardo Castillo",
+        "Dra. Andrea Benites",
+    ],
+    "Oftalmología": [
+        "Dr. Gabriel Herrera",
+        "Dra. Claudia Espinoza",
+        "Dr. Hugo Paredes",
+    ],
+}
+
 # Menú de navegación CRUD
-menu = ["Registrar Cita", "Consultar Citas", "Actualizar Cita", "Eliminar Cita"]
+menu = [
+    "Registrar Cita",
+    "Consultar Citas",
+    "Actualizar Cita",
+    "Eliminar Cita",
+]
 opcion = st.sidebar.selectbox("Seleccione una operación", menu)
 
 # 1. REGISTRAR
@@ -13,20 +55,27 @@ if opcion == "Registrar Cita":
   st.subheader("📝 Registrar Nueva Cita")
   with st.form("form_registro"):
     paciente = st.text_input("Nombre Completo del Paciente")
+
+    # Selección dinámica de especialidad y médicos
     especialidad = st.selectbox(
-        "Especialidad",
-        ["Medicina General", "Pediatría", "Ginecología", "Cardiología"],
+        "Especialidad", list(ESPECIALIDADES_MEDICOS.keys())
     )
-    medico = st.text_input("Médico Asignado")
+    # Los médicos cambian automáticamente según la especialidad seleccionada arriba
+    medico = st.selectbox(
+        "Médico Asignado", ESPECIALIDADES_MEDICOS[especialidad]
+    )
+
     fecha_cita = st.date_input("Fecha de la Cita")
     btn_guardar = st.form_submit_button("Guardar en MongoDB Atlas")
 
     if btn_guardar:
-      if paciente and medico:
+      if paciente:
         db.registrar_cita(paciente, especialidad, medico, fecha_cita)
-        st.success(f"Cita registrada con éxito para {paciente}.")
+        st.success(
+            f"Cita registrada con éxito para {paciente} con el/la {medico}."
+        )
       else:
-        st.error("Por favor complete todos los campos obligatorios.")
+        st.error("Por favor ingrese el nombre del paciente.")
 
 # 2. CONSULTAR
 elif opcion == "Consultar Citas":
@@ -37,43 +86,108 @@ elif opcion == "Consultar Citas":
   citas = db.obtener_todas_las_citas()
   if citas:
     for c in citas:
-      with st.expander(f"📌 Paciente: {c.get('paciente')} - {c.get('fecha_cita')}"):
+      with st.expander(
+          f"📌 Paciente: {c.get('paciente')} - {c.get('especialidad')} ({c.get('fecha_cita')})"
+      ):
         st.write(f"**Especialidad:** {c.get('especialidad')}")
-        st.write(f"**Médico:** {c.get('medico')}")
+        st.write(f"**Médico Asignado:** {c.get('medico')}")
         st.write(f"**Estado:** {c.get('estado')}")
         st.caption(f"ID MongoDB: {c['_id']}")
   else:
-    st.info("No hay citas registradas en la base de datos.")
+        st.info("No hay citas registradas en la base de datos.")
 
-# 3. ACTUALIZAR
+# 3. ACTUALIZAR (Con buscador en específico para cambiar datos)
 elif opcion == "Actualizar Cita":
-  st.subheader("🔄 Actualizar Cita")
+  st.subheader("🔄 Buscar y Actualizar Cita")
   citas = db.obtener_todas_las_citas()
+
   if citas:
-    dict_citas = {
-        f"{c['paciente']} | {c['especialidad']} ({c['fecha_cita']})": c
+    # Barra de búsqueda para filtrar al paciente en específico rápidamente
+    busqueda = st.text_input(
+        "🔍 Buscar paciente por nombre para modificar:"
+    )
+
+    # Filtrar citas según la búsqueda
+    citas_filtradas = [
+        c
         for c in citas
-    }
-    seleccion = st.selectbox(
-        "Seleccione la cita a modificar", list(dict_citas.keys())
-    )
-    cita_obj = dict_citas[seleccion]
+        if busqueda.lower() in c.get("paciente", "").lower()
+    ]
 
-    nuevo_estado = st.selectbox(
-        "Estado",
-        ["Programada", "Atendida", "Cancelada"],
-        index=["Programada", "Atendida", "Cancelada"].index(
-            cita_obj.get("estado", "Programada")
-        ),
-    )
-    nuevo_medico = st.text_input(
-        "Médico Asignado", value=cita_obj.get("medico", "")
-    )
+    if not citas_filtradas and busqueda:
+      st.warning("No se encontraron pacientes con ese nombre.")
+    else:
+      # Si no busca nada, muestra todas
+      lista_a_mostrar = citas_filtradas if busqueda else citas
 
-    if st.button("Actualizar Registro"):
-      db.actualizar_cita(cita_obj["_id"], nuevo_estado, nuevo_medico)
-      st.success("¡Registro actualizado exitosamente!")
-      st.rerun()
+      dict_citas = {
+          f"{c['paciente']} | {c['especialidad']} - {c['fecha_cita']}": c
+          for c in lista_a_mostrar
+      }
+      seleccion = st.selectbox(
+          "Seleccione la cita exacta a modificar", list(dict_citas.keys())
+      )
+      cita_obj = dict_citas[seleccion]
+
+      st.markdown("---")
+      st.write(f"**Modificando a:** {cita_obj['paciente']}")
+
+      # Modificar Estado
+      nuevo_estado = st.selectbox(
+          "Nuevo Estado",
+          ["Programada", "Atendida", "Cancelada"],
+          index=["Programada", "Atendida", "Cancelada"].index(
+              cita_obj.get("estado", "Programada")
+          ),
+      )
+
+      # Modificar Especialidad y reasignar médicos en cascada
+      esp_actual = cita_obj.get("especialidad", list(ESPECIALIDADES_MEDICOS.keys())[0])
+      idx_esp = (
+          list(ESPECIALIDADES_MEDICOS.keys()).index(esp_actual)
+          if esp_actual in ESPECIALIDADES_MEDICOS
+          else 0
+      )
+
+      nueva_especialidad = st.selectbox(
+          "Nueva Especialidad",
+          list(ESPECIALIDADES_MEDICOS.keys()),
+          index=idx_esp,
+      )
+
+      # Los médicos se adaptan a la nueva especialidad elegida
+      medicos_disponibles = ESPECIALIDADES_MEDICOS[nueva_especialidad]
+      med_actual = cita_obj.get("medico", medicos_disponibles[0])
+      idx_med = (
+          medicos_disponibles.index(med_actual)
+          if med_actual in medicos_disponibles
+          else 0
+      )
+
+      nuevo_medico = st.selectbox(
+          "Nuevo Médico Asignado", medicos_disponibles, index=idx_med
+      )
+
+      # Modificar Fecha
+      try:
+        fecha_default = datetime.strptime(
+            cita_obj.get("fecha_cita"), "%Y-%m-%d"
+        ).date()
+      except:
+        fecha_default = datetime.today().date()
+
+      nueva_fecha = st.date_input("Nueva Fecha de Cita", value=fecha_default)
+
+      if st.button("Guardar Cambios en MongoDB"):
+        db.actualizar_cita(
+            cita_obj["_id"],
+            nuevo_estado,
+            nueva_especialidad,
+            nuevo_medico,
+            nueva_fecha,
+        )
+        st.success("¡Cita actualizada exitosamente en la nube!")
+        st.rerun()
   else:
     st.info("No hay datos para actualizar.")
 
